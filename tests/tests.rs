@@ -1,4 +1,5 @@
 use interned::*;
+
 use std::hash::Hash;
 
 macro_rules! assert_impl_all {

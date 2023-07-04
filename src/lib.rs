@@ -1,3 +1,11 @@
+pub mod _unsafe;
+pub mod datatype;
+pub mod memoized;
+pub mod staticize;
+
+use _unsafe::*;
+use staticize::*;
+
 use std::{
     alloc::Layout,
     any::TypeId,
@@ -17,43 +25,17 @@ thread_local! {
     static MEMOIZED: RefCell<HashMap<TypeId, HashMap<u64, Static>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
 }
 
-pub fn static_type_id<T: Staticize>() -> TypeId {
-    TypeId::of::<T::Static>()
-}
+pub enum Slice {}
+pub enum Value {}
+pub enum Reference {}
 
-pub fn static_type_name<T: Staticize>() -> &'static str {
-    &std::any::type_name::<T::Static>()
-}
-
-pub trait Staticize {
-    type Static: 'static + ?Sized;
-}
-
-impl<'a, T: ?Sized> Staticize for &'a T
-where
-    T: Staticize,
-{
-    type Static = &'static T::Static;
-}
-
-impl<'a, T: Staticize> Staticize for &'a [T]
-where
-    <T as Staticize>::Static: Sized,
-{
-    type Static = &'static [T::Static];
-}
-
-#[macro_export]
-macro_rules! derive_staticize {
-    ($typ:ty) => {
-        impl $crate::Staticize for $typ {
-            type Static = $typ;
-        }
-    };
-}
+pub trait DataTypeTypeMarker {}
+impl DataTypeTypeMarker for Slice {}
+impl DataTypeTypeMarker for Value {}
+impl DataTypeTypeMarker for Reference {}
 
 pub trait DataType {
-    type Type;
+    type Type: DataTypeTypeMarker;
     type SliceType;
     type ValueType;
     type SliceValueType;
@@ -68,10 +50,6 @@ pub trait DataType {
         self.to_static_with_hash(None)
     }
 }
-
-pub enum Slice {}
-pub enum Value {}
-pub enum Reference {}
 
 impl<'a, T: Sized + Hash + Copy> DataType for &'a [T] {
     type Type = Slice;
