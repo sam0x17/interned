@@ -253,18 +253,11 @@ impl Static {
         }
     }
 
-    pub unsafe fn _partial_eq<T: PartialEq + DataType>(&self, other: &Static) -> bool
+    pub unsafe fn _partial_eq<T: PartialEq + DataType + Staticize>(&self, other: &Static) -> bool
     where
         T::SliceValueType: PartialEq,
     {
-        match (self, other) {
-            (Static::Value(a), Static::Value(b)) => *a.as_value::<T>() == *b.as_value::<T>(),
-            (Static::Slice(a), Static::Slice(b)) => {
-                a.as_slice::<T::SliceValueType>() == b.as_slice::<T::SliceValueType>()
-            }
-            (Static::Str(a), Static::Str(b)) => a.as_str() == b.as_str(),
-            _ => false,
-        }
+        self.hash_code() == other.hash_code()
     }
 
     pub unsafe fn _partial_cmp<T: PartialOrd + Staticize>(
