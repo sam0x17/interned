@@ -2,7 +2,10 @@
 name = "interned"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["sam0x17"]
+license = "MIT"
+description = "Provides a generic Interned<T> which can intern practically any type including &str, slices, and primitives, plus memoization via Memoized<I, T>"
+keywords = ["intern", "interned", "memoize", "caching"]
+repository = "https://github.com/sam0x17/interned"
 
 [dependencies]
