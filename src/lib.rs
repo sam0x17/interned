@@ -4,6 +4,7 @@ pub mod memoized;
 pub mod staticize;
 
 use _unsafe::*;
+pub use staticize::Staticize;
 use staticize::*;
 
 use std::{
@@ -131,22 +132,6 @@ impl_data_type!(i16, Value);
 impl_data_type!(i32, Value);
 impl_data_type!(i64, Value);
 impl_data_type!(i128, Value);
-
-derive_staticize!(str);
-derive_staticize!(bool);
-derive_staticize!(usize);
-derive_staticize!(u8);
-derive_staticize!(u16);
-derive_staticize!(u32);
-derive_staticize!(u64);
-derive_staticize!(u128);
-derive_staticize!(i8);
-derive_staticize!(i16);
-derive_staticize!(i32);
-derive_staticize!(i64);
-derive_staticize!(i128);
-derive_staticize!(f32);
-derive_staticize!(f64);
 
 #[derive(Copy, Clone)]
 pub struct StaticValue {
