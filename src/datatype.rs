@@ -10,7 +10,7 @@ impl DataTypeTypeMarker for Slice {}
 impl DataTypeTypeMarker for Value {}
 impl DataTypeTypeMarker for Reference {}
 
-pub trait DataType {
+pub unsafe trait DataType {
     type Type: DataTypeTypeMarker;
     type SliceType;
     type ValueType;
@@ -27,7 +27,7 @@ pub trait DataType {
     }
 }
 
-impl<'a, T: Sized + Hash + Copy> DataType for &'a [T] {
+unsafe impl<'a, T: Sized + Hash + Copy> DataType for &'a [T] {
     type Type = Slice;
     type SliceType = &'a [T];
     type ValueType = Self::SliceType;
@@ -49,9 +49,9 @@ impl<'a, T: Sized + Hash + Copy> DataType for &'a [T] {
 }
 
 #[macro_export]
-macro_rules! impl_data_type {
+macro_rules! unsafe_impl_data_type {
     ($typ:ty, Value) => {
-        impl $crate::datatype::DataType for $typ {
+        unsafe impl $crate::datatype::DataType for $typ {
             type Type = $crate::datatype::Value;
             type SliceType = ();
             type ValueType = $typ;
@@ -74,7 +74,7 @@ macro_rules! impl_data_type {
     };
 }
 
-impl<'a> DataType for &'a str {
+unsafe impl<'a> DataType for &'a str {
     type Type = Reference;
     type SliceType = &'a str;
     type ValueType = &'a str;
@@ -95,15 +95,15 @@ impl<'a> DataType for &'a str {
     }
 }
 
-impl_data_type!(bool, Value);
-impl_data_type!(usize, Value);
-impl_data_type!(u8, Value);
-impl_data_type!(u16, Value);
-impl_data_type!(u32, Value);
-impl_data_type!(u64, Value);
-impl_data_type!(u128, Value);
-impl_data_type!(i8, Value);
-impl_data_type!(i16, Value);
-impl_data_type!(i32, Value);
-impl_data_type!(i64, Value);
-impl_data_type!(i128, Value);
+unsafe_impl_data_type!(bool, Value);
+unsafe_impl_data_type!(usize, Value);
+unsafe_impl_data_type!(u8, Value);
+unsafe_impl_data_type!(u16, Value);
+unsafe_impl_data_type!(u32, Value);
+unsafe_impl_data_type!(u64, Value);
+unsafe_impl_data_type!(u128, Value);
+unsafe_impl_data_type!(i8, Value);
+unsafe_impl_data_type!(i16, Value);
+unsafe_impl_data_type!(i32, Value);
+unsafe_impl_data_type!(i64, Value);
+unsafe_impl_data_type!(i128, Value);
