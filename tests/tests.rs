@@ -1,3 +1,4 @@
+use _unsafe::*;
 use interned::*;
 
 use std::hash::Hash;
