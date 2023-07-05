@@ -27,7 +27,7 @@ pub unsafe trait DataType {
     }
 }
 
-unsafe impl<'a, T: Sized + Hash + Copy> DataType for &'a [T] {
+unsafe impl<'a, T: Sized + Hash + Copy + PartialEq> DataType for &'a [T] {
     type Type = Slice;
     type SliceType = &'a [T];
     type ValueType = Self::SliceType;

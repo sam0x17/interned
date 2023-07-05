@@ -69,21 +69,25 @@ impl std::fmt::Debug for StaticValue {
 
 #[derive(Copy, Clone)]
 pub struct StaticSlice {
-    ptr: *const (),
-    len: usize,
+    pub ptr: *const [()],
     hash: u64,
 }
 
 impl StaticSlice {
     pub unsafe fn as_slice<'a, T>(&self) -> &'a [T] {
-        std::slice::from_raw_parts(self.ptr as *const T, self.len)
+        std::slice::from_raw_parts(self.ptr as *const T, self.len())
     }
 
-    pub fn from<T: Hash + Copy>(slice: &[T]) -> Self {
+    #[inline]
+    pub const fn len(&self) -> usize {
+        unsafe { (*self.ptr).len() }
+    }
+
+    pub fn from<T: Hash + Copy + PartialEq>(slice: &[T]) -> Self {
         Self::with_hash(slice, None)
     }
 
-    pub fn with_hash<T: Hash + Copy>(slice: &[T], hash: Option<u64>) -> Self {
+    pub fn with_hash<T: Hash + Copy + PartialEq>(slice: &[T], hash: Option<u64>) -> Self {
         let hash = hash.unwrap_or_else(|| {
             let mut hasher = DefaultHasher::default();
             slice.hash(&mut hasher);
@@ -94,9 +98,17 @@ impl StaticSlice {
             std::ptr::copy(slice.as_ptr(), ptr, slice.len());
             ptr
         };
-        let ptr = (ptr as *const T) as *const ();
-        let len = slice.len();
-        StaticSlice { ptr, len, hash }
+        let ptr = unsafe { std::slice::from_raw_parts(ptr, slice.len()) };
+        //println!("slice.len: {}", ptr.len());
+        let ptr = ptr as *const [T];
+        //println!("*const [T] len: {}", unsafe { (*ptr).len() });
+        let ptr = ptr as *const [()];
+        //println!("*const [()] len: {}", unsafe { (*ptr).len() });
+        let ret = StaticSlice { ptr, hash };
+        //println!("checking slice integrity");
+        assert!(unsafe { ret.as_slice::<T>() } == slice);
+        //println!("pass!");
+        ret
     }
 }
 
@@ -207,7 +219,7 @@ impl Static {
     pub fn as_ptr(&self) -> *const () {
         match self {
             Static::Value(value) => value.ptr,
-            Static::Slice(slice) => slice.ptr,
+            Static::Slice(slice) => slice.ptr as *const (),
             Static::Str(string) => string.ptr as *const (),
         }
     }
@@ -220,7 +232,7 @@ impl Static {
         }
     }
 
-    pub fn from<T: Hash + Copy>(slice: &[T], hash: Option<u64>) -> Self {
+    pub fn from<T: Hash + Copy + PartialEq>(slice: &[T], hash: Option<u64>) -> Self {
         Static::Slice(StaticSlice::with_hash(slice, hash))
     }
 

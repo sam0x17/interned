@@ -165,11 +165,38 @@ impl<T: Hash + Staticize + DataType<Type = Slice>> Deref for Interned<T> {
 
     fn deref(&self) -> &Self::Target {
         match self.value {
-            Static::Slice(static_slice) => unsafe { static_slice.as_slice() },
+            Static::Slice(static_slice) => unsafe {
+                std::slice::from_raw_parts(
+                    static_slice.ptr as *const T::SliceValueType,
+                    (*static_slice.ptr).len(),
+                )
+            },
             _ => unreachable!(),
         }
     }
 }
+
+// impl<T: Hash + Staticize + DataType<Type = Slice>> Deref for Interned<T> {
+//     type Target = [T::SliceValueType];
+
+//     fn deref(&self) -> &Self::Target {
+//         match self.value {
+//             Static::Slice(static_slice) => unsafe { static_slice.as_slice() },
+//             _ => unreachable!(),
+//         }
+//     }
+// }
+
+// impl<T: Hash + From<Interned<T>>> Deref for Interned<T>
+// where
+//     Interned<T>: Copy,
+// {
+//     type Target = T;
+
+//     fn deref(&self) -> &Self::Target {
+//         &Into::<T>::into(*self).into()
+//     }
+// }
 
 impl<T: Hash + PartialEq + Staticize + DataType> PartialEq for Interned<T>
 where
