@@ -160,18 +160,20 @@ impl<T: Hash + Staticize + DataType<Type = Value>> Interned<T> {
     }
 }
 
-impl<T: Hash + Staticize + DataType<Type = Slice>> Deref for Interned<T> {
-    type Target = [T::SliceValueType];
+impl<T: Hash + Staticize + DataType> Deref for Interned<T> {
+    type Target = T::DerefTargetType;
 
     fn deref(&self) -> &Self::Target {
         match self.value {
             Static::Slice(static_slice) => unsafe {
-                std::slice::from_raw_parts(
-                    static_slice.ptr as *const T::SliceValueType,
-                    (*static_slice.ptr).len(),
-                )
+                let target_ref: &[T::SliceValueType] =
+                    &*(static_slice.ptr as *const [T::SliceValueType]);
+                std::mem::transmute_copy(&target_ref)
             },
-            _ => unreachable!(),
+            Static::Value(static_value) => unsafe {
+                std::mem::transmute_copy(&static_value.as_value::<T>())
+            },
+            Static::Str(static_str) => unsafe { std::mem::transmute_copy(&static_str.as_str()) },
         }
     }
 }

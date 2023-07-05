@@ -9,7 +9,7 @@ use crate::staticize::*;
 
 #[derive(Copy, Clone)]
 pub struct StaticValue {
-    ptr: *const (),
+    pub ptr: *const (),
     hash: u64,
 }
 
@@ -83,11 +83,11 @@ impl StaticSlice {
         unsafe { (*self.ptr).len() }
     }
 
-    pub fn from<T: Hash + Copy + PartialEq>(slice: &[T]) -> Self {
+    pub fn from<T: Hash + Copy>(slice: &[T]) -> Self {
         Self::with_hash(slice, None)
     }
 
-    pub fn with_hash<T: Hash + Copy + PartialEq>(slice: &[T], hash: Option<u64>) -> Self {
+    pub fn with_hash<T: Hash + Copy>(slice: &[T], hash: Option<u64>) -> Self {
         let hash = hash.unwrap_or_else(|| {
             let mut hasher = DefaultHasher::default();
             slice.hash(&mut hasher);
@@ -98,17 +98,9 @@ impl StaticSlice {
             std::ptr::copy(slice.as_ptr(), ptr, slice.len());
             ptr
         };
-        let ptr = unsafe { std::slice::from_raw_parts(ptr, slice.len()) };
-        //println!("slice.len: {}", ptr.len());
-        let ptr = ptr as *const [T];
-        //println!("*const [T] len: {}", unsafe { (*ptr).len() });
+        let ptr = unsafe { std::slice::from_raw_parts(ptr, slice.len()) } as *const [T];
         let ptr = ptr as *const [()];
-        //println!("*const [()] len: {}", unsafe { (*ptr).len() });
-        let ret = StaticSlice { ptr, hash };
-        //println!("checking slice integrity");
-        assert!(unsafe { ret.as_slice::<T>() } == slice);
-        //println!("pass!");
-        ret
+        StaticSlice { ptr, hash }
     }
 }
 
@@ -232,7 +224,7 @@ impl Static {
         }
     }
 
-    pub fn from<T: Hash + Copy + PartialEq>(slice: &[T], hash: Option<u64>) -> Self {
+    pub fn from<T: Hash + Copy>(slice: &[T], hash: Option<u64>) -> Self {
         Static::Slice(StaticSlice::with_hash(slice, hash))
     }
 

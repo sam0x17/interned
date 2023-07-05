@@ -16,7 +16,7 @@ pub unsafe trait DataType {
     type ValueType;
     type SliceValueType;
     type InnerType: ?Sized;
-    type DerefType;
+    type DerefTargetType: ?Sized;
 
     fn as_slice(&self) -> &[Self::SliceValueType];
     fn as_value(&self) -> Self::ValueType;
@@ -27,13 +27,13 @@ pub unsafe trait DataType {
     }
 }
 
-unsafe impl<'a, T: Sized + Hash + Copy + PartialEq> DataType for &'a [T] {
+unsafe impl<'a, T: Sized + Hash + Copy> DataType for &'a [T] {
     type Type = Slice;
     type SliceType = &'a [T];
     type ValueType = Self::SliceType;
     type SliceValueType = T;
     type InnerType = T;
-    type DerefType = &'a [T];
+    type DerefTargetType = [T];
 
     fn as_slice(&self) -> &'a [T] {
         *self
@@ -57,7 +57,7 @@ macro_rules! unsafe_impl_data_type {
             type ValueType = $typ;
             type SliceValueType = ();
             type InnerType = $typ;
-            type DerefType = $typ;
+            type DerefTargetType = $typ;
 
             fn as_slice(&self) -> &'static [Self::SliceType] {
                 panic!("not a slice!");
@@ -80,7 +80,7 @@ unsafe impl<'a> DataType for &'a str {
     type ValueType = &'a str;
     type SliceValueType = ();
     type InnerType = str;
-    type DerefType = &'a str;
+    type DerefTargetType = str;
 
     fn as_slice(&self) -> &'static [()] {
         panic!("not supported");

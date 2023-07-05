@@ -239,11 +239,11 @@ fn test_interned_str_types() {
 #[test]
 fn test_interned_deref() {
     let a: Interned<i32> = Interned::from(-99);
-    assert_eq!(a.interned_value().abs(), 99);
+    assert_eq!(a.abs(), 99);
     let b = Interned::from([5, 6, 7].as_slice());
     assert_eq!(b.len(), 3);
     let c = Interned::from("for the good of all of us except the ones who are dead");
-    assert_eq!(c.interned_str().chars().next().unwrap(), 'f');
+    assert_eq!(c.chars().next().unwrap(), 'f');
 }
 
 #[test]
