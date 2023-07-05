@@ -9,3 +9,4 @@ keywords = ["intern", "interned", "memoize", "caching"]
 repository = "https://github.com/sam0x17/interned"
 
 [dependencies]
+docify = "0.1"

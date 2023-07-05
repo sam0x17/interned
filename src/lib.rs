@@ -29,6 +29,9 @@
 //! (pointer) plus a [`u64`] (cached hash code), it would be silly to use [`Interned<T>`] with
 //! integer types directly, however it makes sense to do so for the purposes of memoizing an
 //! expensive computation via [`Memoized<I, T>`].
+//!
+//! ### Example
+#![doc = docify::embed_run!("tests/tests.rs", test_interned_showcase)]
 
 pub mod _unsafe;
 pub mod staticize;

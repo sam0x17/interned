@@ -166,6 +166,7 @@ fn test_interned_basics() {
     assert_eq!(num_interned::<i32>(), initial_interned + 2);
 }
 
+#[docify::export]
 #[test]
 fn test_interned_showcase() {
     let a: Interned<i32> = 1289.into();
