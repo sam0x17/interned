@@ -212,6 +212,7 @@ fn test_interned_into() {
     let c: Interned<i32> = 43.into();
     assert_ne!(a, c);
     assert_ne!(c, b);
+    assert_eq!(32, b.into());
 }
 
 #[test]

@@ -118,7 +118,7 @@ impl<T: Hash + Copy + Staticize + DataType> From<Static> for Interned<T> {
     }
 }
 
-impl<T: Hash + Copy + Staticize + DataType> From<T> for Interned<T::Static>
+impl<T: Hash + Copy + Staticize + DataType + From<Interned<T>>> From<T> for Interned<T::Static>
 where
     <T as Staticize>::Static: Hash + Sized,
 {
@@ -249,3 +249,39 @@ pub fn num_interned<T: Staticize>() -> usize {
     let type_id = static_type_id::<T>();
     INTERNED.with(|interned| interned.borrow_mut().entry(type_id).or_default().len())
 }
+
+macro_rules! derive_from_interned_impl {
+    ($ty:ty) => {
+        impl From<$crate::Interned<$ty>> for $ty {
+            fn from(value: Interned<$ty>) -> Self {
+                value.into()
+            }
+        }
+    };
+}
+
+derive_from_interned_impl!(bool);
+derive_from_interned_impl!(usize);
+derive_from_interned_impl!(u8);
+derive_from_interned_impl!(u16);
+derive_from_interned_impl!(u32);
+derive_from_interned_impl!(u64);
+derive_from_interned_impl!(u128);
+derive_from_interned_impl!(i8);
+derive_from_interned_impl!(i16);
+derive_from_interned_impl!(i32);
+derive_from_interned_impl!(i64);
+derive_from_interned_impl!(i128);
+derive_from_interned_impl!(&[bool]);
+derive_from_interned_impl!(&[usize]);
+derive_from_interned_impl!(&[u8]);
+derive_from_interned_impl!(&[u16]);
+derive_from_interned_impl!(&[u32]);
+derive_from_interned_impl!(&[u64]);
+derive_from_interned_impl!(&[u128]);
+derive_from_interned_impl!(&[i8]);
+derive_from_interned_impl!(&[i16]);
+derive_from_interned_impl!(&[i32]);
+derive_from_interned_impl!(&[i64]);
+derive_from_interned_impl!(&[i128]);
+derive_from_interned_impl!(&str);
