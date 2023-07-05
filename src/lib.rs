@@ -250,38 +250,61 @@ pub fn num_interned<T: Staticize>() -> usize {
     INTERNED.with(|interned| interned.borrow_mut().entry(type_id).or_default().len())
 }
 
-macro_rules! derive_from_interned_impl {
+macro_rules! derive_from_interned_impl_value {
     ($ty:ty) => {
         impl From<$crate::Interned<$ty>> for $ty {
             fn from(value: Interned<$ty>) -> Self {
-                value.into()
+                use $crate::_unsafe::Static::*;
+                match value.value {
+                    Value(val) => unsafe { *val.as_value() },
+                    _ => unreachable!(),
+                }
             }
         }
     };
 }
 
-derive_from_interned_impl!(bool);
-derive_from_interned_impl!(usize);
-derive_from_interned_impl!(u8);
-derive_from_interned_impl!(u16);
-derive_from_interned_impl!(u32);
-derive_from_interned_impl!(u64);
-derive_from_interned_impl!(u128);
-derive_from_interned_impl!(i8);
-derive_from_interned_impl!(i16);
-derive_from_interned_impl!(i32);
-derive_from_interned_impl!(i64);
-derive_from_interned_impl!(i128);
-derive_from_interned_impl!(&[bool]);
-derive_from_interned_impl!(&[usize]);
-derive_from_interned_impl!(&[u8]);
-derive_from_interned_impl!(&[u16]);
-derive_from_interned_impl!(&[u32]);
-derive_from_interned_impl!(&[u64]);
-derive_from_interned_impl!(&[u128]);
-derive_from_interned_impl!(&[i8]);
-derive_from_interned_impl!(&[i16]);
-derive_from_interned_impl!(&[i32]);
-derive_from_interned_impl!(&[i64]);
-derive_from_interned_impl!(&[i128]);
-derive_from_interned_impl!(&str);
+macro_rules! derive_from_interned_impl_slice {
+    ($ty:ty) => {
+        impl From<$crate::Interned<$ty>> for $ty {
+            fn from(value: Interned<$ty>) -> Self {
+                use $crate::_unsafe::Static::*;
+                match value.value {
+                    Slice(slice) => unsafe { slice.as_slice() },
+                    _ => unreachable!(),
+                }
+            }
+        }
+    };
+}
+
+impl From<Interned<&str>> for &str {
+    fn from(value: Interned<&str>) -> Self {
+        value.interned_str()
+    }
+}
+
+derive_from_interned_impl_value!(bool);
+derive_from_interned_impl_value!(usize);
+derive_from_interned_impl_value!(u8);
+derive_from_interned_impl_value!(u16);
+derive_from_interned_impl_value!(u32);
+derive_from_interned_impl_value!(u64);
+derive_from_interned_impl_value!(u128);
+derive_from_interned_impl_value!(i8);
+derive_from_interned_impl_value!(i16);
+derive_from_interned_impl_value!(i32);
+derive_from_interned_impl_value!(i64);
+derive_from_interned_impl_value!(i128);
+derive_from_interned_impl_slice!(&[bool]);
+derive_from_interned_impl_slice!(&[usize]);
+derive_from_interned_impl_slice!(&[u8]);
+derive_from_interned_impl_slice!(&[u16]);
+derive_from_interned_impl_slice!(&[u32]);
+derive_from_interned_impl_slice!(&[u64]);
+derive_from_interned_impl_slice!(&[u128]);
+derive_from_interned_impl_slice!(&[i8]);
+derive_from_interned_impl_slice!(&[i16]);
+derive_from_interned_impl_slice!(&[i32]);
+derive_from_interned_impl_slice!(&[i64]);
+derive_from_interned_impl_slice!(&[i128]);
