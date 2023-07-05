@@ -38,9 +38,9 @@ impl<I: Hash, T: Hash + Copy + Staticize + DataType> Memoized<I, T>
 where
     T::Static: Hash + Copy + Clone + DataType,
 {
-    pub fn from<G>(input: &I, generator: G) -> Memoized<I, T>
+    pub fn from<G>(input: I, generator: G) -> Memoized<I, T>
     where
-        G: Fn(&I) -> T,
+        G: Fn(I) -> Interned<T>,
     {
         let mut hasher = DefaultHasher::default();
         input.hash(&mut hasher);
@@ -54,7 +54,7 @@ where
                 .entry(input_hash)
             {
                 Entry::Occupied(entry) => *entry.get(),
-                Entry::Vacant(entry) => *entry.insert(generator(input).to_static()),
+                Entry::Vacant(entry) => *entry.insert(generator(input).value),
             }
         });
         Memoized {

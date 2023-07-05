@@ -30,7 +30,7 @@
 //! integer types directly, however it makes sense to do so for the purposes of memoizing an
 //! expensive computation via [`Memoized<I, T>`].
 //!
-//! ### Example
+//! ### Interned Example
 #![doc = docify::embed_run!("tests/tests.rs", test_interned_showcase)]
 
 pub mod _unsafe;

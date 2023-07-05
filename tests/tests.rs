@@ -192,6 +192,18 @@ fn test_interned_showcase() {
     );
 }
 
+#[docify::export]
+#[test]
+fn test_memoized_showcase() {
+    fn expensive_fn(a: usize, b: usize, c: usize) -> String {
+        format!("{}", a * a + b * b + c * c)
+    }
+    let a = Memoized::from((1, 2, 3), |tup: (usize, usize, usize)| {
+        expensive_fn(tup.0, tup.1, tup.2).as_str().into()
+    });
+    assert_eq!(a.as_str(), "14");
+}
+
 #[test]
 fn test_interned_into() {
     let a: Interned<i32> = 32.into();
@@ -236,10 +248,10 @@ fn test_interned_deref() {
 fn test_memoized_basic() {
     let initial_interned = num_interned::<usize>();
     let initial_memoized = num_memoized::<usize>();
-    let a = Memoized::from(&"some_input", |input| input.len());
-    let b = Memoized::from(&"other", |input| input.len());
+    let a = Memoized::from(&"some_input", |input| input.len().into());
+    let b = Memoized::from(&"other", |input| input.len().into());
     assert_ne!(a, b);
-    let c = Memoized::from(&"some_input", |input| input.len());
+    let c = Memoized::from(&"some_input", |input| input.len().into());
     assert_eq!(a, c);
     assert_ne!(b, c);
     assert_eq!(a.as_value(), &10);
