@@ -64,13 +64,20 @@ where
     }
 }
 
-impl<I: Hash, T: Hash + Copy + Staticize + DataType<Type = Slice>> Deref for Memoized<I, T> {
-    type Target = [T::SliceValueType];
+impl<I: Hash, T: Hash + Staticize + DataType> Deref for Memoized<I, T> {
+    type Target = T::DerefTargetType;
 
     fn deref(&self) -> &Self::Target {
-        match self.interned().value {
-            Static::Slice(static_slice) => unsafe { static_slice.as_slice() },
-            _ => unreachable!(),
+        match self.interned.value {
+            Static::Slice(static_slice) => unsafe {
+                let target_ref: &[T::SliceValueType] =
+                    &*(static_slice.ptr as *const [T::SliceValueType]);
+                std::mem::transmute_copy(&target_ref)
+            },
+            Static::Value(static_value) => unsafe {
+                std::mem::transmute_copy(&static_value.as_value::<T>())
+            },
+            Static::Str(static_str) => unsafe { std::mem::transmute_copy(&static_str.as_str()) },
         }
     }
 }

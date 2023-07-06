@@ -247,13 +247,27 @@ fn test_interned_deref() {
 }
 
 #[test]
+fn test_memoized_deref() {
+    let a: Memoized<i32, _> = Memoized::from(3, |input| (input * 7).into());
+    assert_eq!(a.abs(), 21);
+    let b: Memoized<i32, &str> = Memoized::from(3, |_input| "something".into());
+    assert!(b.starts_with("some"));
+    let c: Memoized<(bool, usize, u32), _> = Memoized::from((true, 3, 4), |input| {
+        [input.1 as i32, input.2 as i32].as_slice().into()
+    });
+    assert_eq!(c[0], 3);
+    assert_eq!(c[1], 4);
+    assert!(c.contains(&4));
+}
+
+#[test]
 fn test_memoized_basic() {
     let initial_interned = num_interned::<usize>();
     let initial_memoized = num_memoized::<usize>();
-    let a = Memoized::from(&"some_input", |input| input.len().into());
-    let b = Memoized::from(&"other", |input| input.len().into());
+    let a = Memoized::from("some_input", |input| input.len().into());
+    let b = Memoized::from("other", |input| input.len().into());
     assert_ne!(a, b);
-    let c = Memoized::from(&"some_input", |input| input.len().into());
+    let c = Memoized::from("some_input", |input| input.len().into());
     assert_eq!(a, c);
     assert_ne!(b, c);
     assert_eq!(a.as_value(), &10);
