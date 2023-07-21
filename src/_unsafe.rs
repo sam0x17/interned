@@ -1,3 +1,5 @@
+//! Contains some of the unsafe backing types used by interned, mainly [`Static`].
+
 use std::{
     alloc::Layout,
     collections::hash_map::DefaultHasher,
@@ -7,6 +9,8 @@ use std::{
 use crate::datatype::*;
 use staticize::*;
 
+/// An unsafe internal struct used to represent a type-erased, heap-allocated, static value
+/// (i.e. not a reference or slice).
 #[derive(Copy, Clone)]
 pub struct StaticValue {
     pub ptr: *const (),
@@ -14,14 +18,24 @@ pub struct StaticValue {
 }
 
 impl StaticValue {
+    /// Allows (unsafe) direct access to the value stored in this [`StaticValue`]. Specifying a
+    /// `T` that differs from the type of the value actually stored in the [`StaticValue`] is
+    /// UB.
     pub const unsafe fn as_value<'a, T>(&self) -> &'a T {
         &*(self.ptr as *const T)
     }
 
+    /// Creates a new [`StaticValue`] from the specified `value`, which must be hashable. Since
+    /// [`StaticValue`] does not de-allocate its associated heap value when it is dropped (in
+    /// fact, it can't be dropped because it is [`Copy`]), this amounts to a memory leak.
     pub fn from<T: Hash>(value: T) -> Self {
         Self::with_hash(value, None)
     }
 
+    /// Creates a new [`StaticValue`] from the specified `value`, based on a manually-specified
+    /// hashcode. Since [`StaticValue`] does not de-allocate its associated heap value when it
+    /// is dropped (in fact, it can't be dropped because it is [`Copy`]), this amounts to a
+    /// memory leak.
     pub fn with_hash<T: Hash>(value: T, hash: Option<u64>) -> Self {
         let hash = hash.unwrap_or_else(|| {
             let mut hasher = DefaultHasher::default();
@@ -67,6 +81,8 @@ impl std::fmt::Debug for StaticValue {
     }
 }
 
+/// An unsafe internal struct used to represent a type-erased, heap-allocated, static slice
+/// (i.e. not a value or reference).
 #[derive(Copy, Clone)]
 pub struct StaticSlice {
     pub ptr: *const [()],
@@ -74,19 +90,30 @@ pub struct StaticSlice {
 }
 
 impl StaticSlice {
+    /// Allows (unsafe) direct access to the slice stored in this [`StaticSlice`]. Specifying a
+    /// `T` that differs from the type of the slice actually stored in the [`StaticSlice`] is
+    /// UB.
     pub unsafe fn as_slice<'a, T>(&self) -> &'a [T] {
         std::slice::from_raw_parts(self.ptr as *const T, self.len())
     }
 
+    /// Returns the length of the slice stored in this [`StaticSlice`].
     #[inline]
     pub const fn len(&self) -> usize {
         unsafe { (*self.ptr).len() }
     }
 
+    /// Creates a new [`StaticSlice`] from the specified `slice`, which must be hashable. Since
+    /// [`StaticSlice`] does not de-allocate its associated heap slice when it is dropped (in
+    /// fact, it can't be dropped because it is [`Copy`]), this amounts to a memory leak.
     pub fn from<T: Hash + Copy>(slice: &[T]) -> Self {
         Self::with_hash(slice, None)
     }
 
+    /// Creates a new [`StaticSlice`] from the specified `slice`, based on a manually-specified
+    /// hashcode. Since [`StaticSlice`] does not de-allocate its associated heap value when it
+    /// is dropped (in fact, it can't be dropped because it is [`Copy`]), this amounts to a
+    /// memory leak.
     pub fn with_hash<T: Hash + Copy>(slice: &[T], hash: Option<u64>) -> Self {
         let hash = hash.unwrap_or_else(|| {
             let mut hasher = DefaultHasher::default();
@@ -138,6 +165,11 @@ impl std::fmt::Debug for StaticSlice {
     }
 }
 
+/// An internal struct used to represent a type-erased, heap-allocated, static string
+/// (`&'static str`) (i.e. not a reference, slice, or value).
+///
+/// [`StaticStr`] is the only variant of [`Static`] where all methods are inherently safe,
+/// because no type erasure occurs.
 #[derive(Copy, Clone)]
 pub struct StaticStr {
     ptr: *const str,
@@ -145,14 +177,22 @@ pub struct StaticStr {
 }
 
 impl StaticStr {
-    pub const unsafe fn as_str<'a>(&self) -> &'a str {
-        &*(self.ptr as *const str)
+    /// Allows direct access to the string stored in this [`StaticStr`].
+    pub const fn as_str<'a>(&self) -> &'a str {
+        unsafe { &*(self.ptr as *const str) }
     }
 
+    /// Creates a new [`StaticStr`] from the specified `&str`. Since [`StaticStr`] does not
+    /// de-allocate its associated heap string when it is dropped (in fact, it can't be dropped
+    /// because it is [`Copy`]), this amounts to a memory leak.
     pub fn from<T: Hash + Copy>(value: &str) -> Self {
         Self::with_hash(value, None)
     }
 
+    /// Creates a new [`StaticStr`] from the specified `&str`, based on a manually-specified
+    /// hashcode. Since [`StaticStr`] does not de-allocate its associated heap string when it
+    /// is dropped (in fact, it can't be dropped because it is [`Copy`]), this amounts to a
+    /// memory leak.
     pub fn with_hash(value: &str, hash: Option<u64>) -> Self {
         let hash = hash.unwrap_or_else(|| {
             let mut hasher = DefaultHasher::default();
@@ -200,6 +240,11 @@ impl std::fmt::Debug for StaticStr {
     }
 }
 
+/// An (unsafe) internal enum that generalizes over [`StaticValue`], [`StaticSlice`], and
+/// [`StaticStr`].
+///
+/// Thus [`Static`] represents an arbitrary heap-allocated value with a `'static` lifetime that
+/// cannot be dropped/de-allocated.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Static {
     Value(StaticValue),
@@ -208,6 +253,8 @@ pub enum Static {
 }
 
 impl Static {
+    /// Returns the heap pointer for the data of this [`Static`]. Obtaining the pointer is safe
+    /// but doing something with it other than printing it is inherently unsafe.
     pub fn as_ptr(&self) -> *const () {
         match self {
             Static::Value(value) => value.ptr,
@@ -216,6 +263,8 @@ impl Static {
         }
     }
 
+    /// Returns the underlying hash code stored in the [`StaticValue`] / [`StaticSlice`] /
+    /// [`StaticStr`].
     pub fn hash_code(&self) -> u64 {
         match self {
             Static::Value(value) => value.hash,
@@ -224,18 +273,24 @@ impl Static {
         }
     }
 
+    /// Creates a [`Static`] from a slice.
     pub fn from<T: Hash + Copy>(slice: &[T], hash: Option<u64>) -> Self {
         Static::Slice(StaticSlice::with_hash(slice, hash))
     }
 
+    /// Creates a [`Static`] from a value.
     pub fn from_value<T: Hash>(value: T, hash: Option<u64>) -> Static {
         Static::Value(StaticValue::with_hash(value, hash))
     }
 
+    /// Creates a [`Static`] from a `&str`.
     pub fn from_str(value: &str, hash: Option<u64>) -> Static {
         Static::Str(StaticStr::with_hash(value, hash))
     }
 
+    /// Unsafely accesses the slice pointed to by the underlying [`StaticSlice`]. If the
+    /// underlying variant of the [`Static`] is not a [`StaticSlice`], this method will panic.
+    /// Specifying the wrong `T` is UB.
     pub unsafe fn as_slice<'a, T>(&self) -> &'a [T] {
         match self {
             Static::Slice(static_slice) => static_slice.as_slice::<T>(),
@@ -243,6 +298,9 @@ impl Static {
         }
     }
 
+    /// Unsafely accesses the value pointed to by the underlying [`StaticValue`]. If the
+    /// underlying variant of the [`Static`] is not a [`StaticValue`], this method will panic.
+    /// Specifying the wrong `T` is UB.
     pub unsafe fn as_value<'a, T>(&self) -> &'a T {
         match self {
             Static::Value(static_value) => static_value.as_value::<T>(),
@@ -250,13 +308,16 @@ impl Static {
         }
     }
 
-    pub unsafe fn as_str<'a>(&self) -> &'a str {
+    /// Unsafely accesses the `&str` pointed to by the underlying [`StaticStr`]. If the
+    /// underlying variant of the [`Static`] is not a [`StaticStr`], this method will panic.
+    pub fn as_str<'a>(&self) -> &'a str {
         match self {
             Static::Str(static_str) => static_str.as_str(),
             _ => panic!("not a &str!"),
         }
     }
 
+    /// This is UB if the underlying types differ and a hash collision occurs.
     pub unsafe fn _partial_eq<T: PartialEq + DataType + Staticize>(&self, other: &Static) -> bool
     where
         T::SliceValueType: PartialEq,
@@ -264,6 +325,7 @@ impl Static {
         self.hash_code() == other.hash_code()
     }
 
+    /// This is UB if the underlying `T` is specified incorrectly
     pub unsafe fn _partial_cmp<T: PartialOrd + Staticize>(
         &self,
         other: &Self,
@@ -281,6 +343,7 @@ impl Static {
         }
     }
 
+    /// This is UB if the underlying `T` is specified incorrectly
     pub unsafe fn _cmp<T: Ord + Staticize>(&self, other: &Self) -> std::cmp::Ordering {
         match (self, other) {
             (Static::Value(a), Static::Value(b)) => a.as_value::<T>().cmp(b.as_value::<T>()),
@@ -291,6 +354,7 @@ impl Static {
         }
     }
 
+    /// This is UB if the underlying `T` is specified incorrectly
     pub unsafe fn _hash<T: Hash + Staticize, H: Hasher>(&self, state: &mut H) {
         let type_id = T::static_type_id();
         match self {
