@@ -198,7 +198,7 @@ fn test_memoized_showcase() {
     fn expensive_fn(a: usize, b: usize, c: usize) -> String {
         format!("{}", a * a + b * b + c * c)
     }
-    let a = Memoized::from((1, 2, 3), |tup: (usize, usize, usize)| {
+    let a = Memoized::from("my_scope", (1, 2, 3), |tup: (usize, usize, usize)| {
         expensive_fn(tup.0, tup.1, tup.2).as_str().into()
     });
     assert_eq!(a.as_str(), "14");
@@ -248,11 +248,11 @@ fn test_interned_deref() {
 
 #[test]
 fn test_memoized_deref() {
-    let a: Memoized<i32, _> = Memoized::from(3, |input| (input * 7).into());
+    let a: Memoized<i32, _> = Memoized::from("scope a", 3, |input| (input * 7).into());
     assert_eq!(a.abs(), 21);
-    let b: Memoized<i32, &str> = Memoized::from(3, |_input| "something".into());
+    let b: Memoized<i32, &str> = Memoized::from("scope a", 3, |_input| "something".into());
     assert!(b.starts_with("some"));
-    let c: Memoized<(bool, usize, u32), _> = Memoized::from((true, 3, 4), |input| {
+    let c: Memoized<(bool, usize, u32), _> = Memoized::from("scope a", (true, 3, 4), |input| {
         [input.1 as i32, input.2 as i32].as_slice().into()
     });
     assert_eq!(c[0], 3);
@@ -264,10 +264,10 @@ fn test_memoized_deref() {
 fn test_memoized_basic() {
     let initial_interned = num_interned::<usize>();
     let initial_memoized = num_memoized::<usize>();
-    let a = Memoized::from("some_input", |input| input.len().into());
-    let b = Memoized::from("other", |input| input.len().into());
+    let a = Memoized::from("scope a", "some_input", |input| input.len().into());
+    let b = Memoized::from("scope a", "other", |input| input.len().into());
     assert_ne!(a, b);
-    let c = Memoized::from("some_input", |input| input.len().into());
+    let c = Memoized::from("scope a", "some_input", |input| input.len().into());
     assert_eq!(a, c);
     assert_ne!(b, c);
     assert_eq!(a.as_value(), &10);
@@ -276,6 +276,26 @@ fn test_memoized_basic() {
     assert_eq!(*c.as_value(), 10);
     assert_eq!(num_interned::<usize>(), initial_interned + 2);
     assert_eq!(num_memoized::<usize>(), initial_memoized + 2);
+}
+
+#[test]
+fn test_memoized_scopes() {
+    let a = Memoized::from("scope a", (5, 6, 7), |input| {
+        (input.0 + input.1 + input.2).into()
+    });
+    let b = Memoized::from("scope b", (5, 6, 7), |input| {
+        (input.0 + input.1 + input.2).into()
+    });
+    let c = Memoized::from("scope c", (5, 6, 7), |input| {
+        (input.0 * input.1 * input.2).into()
+    });
+    assert_eq!(a, b);
+    assert_ne!(a, c);
+    let d = Memoized::from("scope b", (5, 6, 7), |input| {
+        (input.0 * input.1 + input.2).into()
+    });
+    assert_eq!(b, d);
+    assert_ne!(*d, 37);
 }
 
 #[test]

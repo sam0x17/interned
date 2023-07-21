@@ -38,12 +38,14 @@ impl<I: Hash, T: Hash + Copy + Staticize + DataType> Memoized<I, T>
 where
     T::Static: Hash + Copy + Clone + DataType,
 {
-    pub fn from<G>(input: I, generator: G) -> Memoized<I, T>
+    pub fn from<S, G>(scope: S, input: I, generator: G) -> Memoized<I, T>
     where
+        S: Hash,
         G: Fn(I) -> Interned<T>,
     {
         let mut hasher = DefaultHasher::default();
         input.hash(&mut hasher);
+        scope.hash(&mut hasher);
         let input_hash = hasher.finish();
         let type_id = T::static_type_id();
         let value_static = MEMOIZED.with(|memoized| {
