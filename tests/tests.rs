@@ -292,6 +292,8 @@ fn test_memoized_scopes() {
     assert_eq!(a, b);
     assert_ne!(a, c);
     let d = Memoized::from("scope b", (5, 6, 7), |input| {
+        // this returns 37, but the value won't get saved because
+        // a value is already cached for this exact scope and input
         (input.0 * input.1 + input.2).into()
     });
     assert_eq!(b, d);
