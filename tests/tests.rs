@@ -260,6 +260,7 @@ fn test_memoized_deref() {
     assert!(c.contains(&4));
 }
 
+#[docify::export]
 #[test]
 fn test_memoized_basic() {
     let initial_interned = num_interned::<usize>();
@@ -278,6 +279,7 @@ fn test_memoized_basic() {
     assert_eq!(num_memoized::<usize>(), initial_memoized + 2);
 }
 
+#[docify::export]
 #[test]
 fn test_memoized_scopes() {
     let a = Memoized::from("scope a", (5, 6, 7), |input| {
