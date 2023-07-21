@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::datatype::*;
-use crate::staticize::*;
+use staticize::*;
 
 #[derive(Copy, Clone)]
 pub struct StaticValue {
@@ -276,8 +276,8 @@ impl Static {
                 a.as_slice::<T>().partial_cmp(b.as_slice::<T>())
             }
             (Static::Str(a), Static::Str(b)) => a.as_str().partial_cmp(b.as_str()),
-            _ => (static_type_id::<T>(), self.hash_code())
-                .partial_cmp(&(static_type_id::<T>(), other.hash_code())),
+            _ => (T::static_type_id(), self.hash_code())
+                .partial_cmp(&(T::static_type_id(), other.hash_code())),
         }
     }
 
@@ -286,13 +286,13 @@ impl Static {
             (Static::Value(a), Static::Value(b)) => a.as_value::<T>().cmp(b.as_value::<T>()),
             (Static::Slice(a), Static::Slice(b)) => a.as_slice::<T>().cmp(b.as_slice::<T>()),
             (Static::Str(a), Static::Str(b)) => a.as_str().cmp(b.as_str()),
-            _ => (static_type_id::<T>(), self.hash_code())
-                .cmp(&(static_type_id::<T>(), other.hash_code())),
+            _ => (T::static_type_id(), self.hash_code())
+                .cmp(&(T::static_type_id(), other.hash_code())),
         }
     }
 
     pub unsafe fn _hash<T: Hash + Staticize, H: Hasher>(&self, state: &mut H) {
-        let type_id = static_type_id::<T>();
+        let type_id = T::static_type_id();
         match self {
             Static::Value(value) => (type_id, value).hash(state),
             Static::Slice(slice) => (type_id, slice).hash(state),

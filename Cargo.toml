@@ -10,3 +10,4 @@ repository = "https://github.com/sam0x17/interned"
 
 [dependencies]
 docify = "0.2"
+staticize = "0.1.1"

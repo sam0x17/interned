@@ -34,8 +34,6 @@
 #![doc = docify::embed_run!("tests/tests.rs", test_interned_showcase)]
 
 pub mod _unsafe;
-pub mod staticize;
-pub use staticize::Staticize;
 pub mod datatype;
 pub use datatype::DataType;
 pub mod memoized;
@@ -102,7 +100,7 @@ impl<T: Hash> Interned<T> {
 
 impl<T: Hash + Copy + Staticize + DataType> From<Static> for Interned<T> {
     fn from(value: Static) -> Self {
-        let type_id = static_type_id::<T>();
+        let type_id = T::static_type_id();
         let entry = INTERNED.with(|interned| {
             *interned
                 .borrow_mut()
@@ -126,7 +124,7 @@ where
         let mut hasher = DefaultHasher::default();
         value.hash(&mut hasher);
         let hash = hasher.finish();
-        let type_id = static_type_id::<T>();
+        let type_id = T::static_type_id();
         let entry = INTERNED.with(|interned| {
             *interned
                 .borrow_mut()
@@ -223,7 +221,7 @@ where
     <T as DataType>::SliceValueType: std::fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut f = f.debug_struct(format!("Interned<{}>", static_type_name::<T>()).as_str());
+        let mut f = f.debug_struct(format!("Interned<{}>", T::static_type_name()).as_str());
         let ret = match self.value {
             Static::Value(value) => f.field("value", unsafe { value.as_value::<T>() }),
             Static::Slice(slice) => {
@@ -248,12 +246,12 @@ impl<T: Hash + Display> Display for Interned<T> {
 }
 
 pub fn num_memoized<T: Staticize>() -> usize {
-    let type_id = static_type_id::<T>();
+    let type_id = T::static_type_id();
     MEMOIZED.with(|interned| interned.borrow_mut().entry(type_id).or_default().len())
 }
 
 pub fn num_interned<T: Staticize>() -> usize {
-    let type_id = static_type_id::<T>();
+    let type_id = T::static_type_id();
     INTERNED.with(|interned| interned.borrow_mut().entry(type_id).or_default().len())
 }
 

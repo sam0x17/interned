@@ -45,7 +45,7 @@ where
         let mut hasher = DefaultHasher::default();
         input.hash(&mut hasher);
         let input_hash = hasher.finish();
-        let type_id = static_type_id::<T>();
+        let type_id = T::static_type_id();
         let value_static = MEMOIZED.with(|memoized| {
             match (*memoized)
                 .borrow_mut()
