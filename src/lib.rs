@@ -63,10 +63,15 @@ use std::{
 };
 
 thread_local! {
+    /// Internal thread-local data structure used to store all interned values.
     static INTERNED: RefCell<HashMap<TypeId, HashMap<u64, Static>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
+
+    /// Internal thread-local data structure used to store all memoized values.
     static MEMOIZED: RefCell<HashMap<TypeId, HashMap<u64, Static>, TypeIdHasherBuilder>> = RefCell::new(HashMap::with_hasher(TypeIdHasherBuilder));
 }
 
+/// Internal [`Hasher`] used to hash a [`TypeId`] by simply using the underlying `u64` of the
+/// [`TypeId`] as the hash code. This results in a zero-cost hash operation for [`TypeId`].
 struct TypeIdHasher {
     hash: Option<u64>,
 }
@@ -82,6 +87,7 @@ impl Hasher for TypeIdHasher {
     }
 }
 
+/// Internal [`BuildHasher`] used to set up [`TypeIdHasher`] in a usable form.
 struct TypeIdHasherBuilder;
 
 impl BuildHasher for TypeIdHasherBuilder {
@@ -92,6 +98,12 @@ impl BuildHasher for TypeIdHasherBuilder {
     }
 }
 
+/// The main type of this crate. Represents a unique, heap-allocated, statically interned value that
+/// will exist for the life of the program.
+///
+/// Two instances of [`Interned`] for the same value `T` will always have the same heap memory
+/// address. Additionally, `Interned` values can be copied freely, since they are merely heap
+/// pointers.
 #[derive(Copy, Clone)]
 pub struct Interned<T: Hash> {
     _value: PhantomData<T>,
@@ -99,6 +111,8 @@ pub struct Interned<T: Hash> {
 }
 
 impl<T: Hash> Interned<T> {
+    /// Provides raw access to the raw heap pointer for this [`Interned`] value. Doing
+    /// something substantive with this value is unsafe. Useful for testing.
     pub fn as_ptr(&self) -> *const () {
         self.value.as_ptr()
     }
@@ -147,18 +161,24 @@ where
 }
 
 impl<T: Hash + Staticize + DataType<Type = Slice>> Interned<T> {
+    /// Returns a the underlying slice interned in this [`Interned`]. Calling this method on a
+    /// non-slice will panic.
     pub fn interned_slice<'a>(&self) -> &'a [T::SliceValueType] {
         unsafe { self.value.as_slice::<T::SliceValueType>() }
     }
 }
 
 impl Interned<&str> {
+    /// Returns a reference to the underlying `&str` interned in this [`Interned`]. Calling
+    /// this method on a non-string will panic.
     pub fn interned_str<'a>(&self) -> &'a str {
         self.value.as_str()
     }
 }
 
 impl<T: Hash + Staticize + DataType<Type = Value>> Interned<T> {
+    /// Returns a reference to the underlying `T` interned in this [`Interned`]. Calling this
+    /// method on a non-value will panic.
     pub fn interned_value<'a>(&self) -> &'a T {
         unsafe { self.value.as_value() }
     }
@@ -167,6 +187,7 @@ impl<T: Hash + Staticize + DataType<Type = Value>> Interned<T> {
 impl<T: Hash + Staticize + DataType> Deref for Interned<T> {
     type Target = T::DerefTargetType;
 
+    // this `Deref` implementation safely generalizes to the proper underlying type.
     fn deref(&self) -> &Self::Target {
         match self.value {
             Static::Slice(static_slice) => unsafe {
@@ -251,16 +272,22 @@ impl<T: Hash + Display> Display for Interned<T> {
     }
 }
 
+/// Returns the number of items currently memoized by [`Memoized`] on the current thread for
+/// the specified type `T`. This is useful for testing and debugging.
 pub fn num_memoized<T: Staticize>() -> usize {
     let type_id = T::static_type_id();
     MEMOIZED.with(|interned| interned.borrow_mut().entry(type_id).or_default().len())
 }
 
+/// Returns the number of items currently interned by [`Interned`] on the current thread for
+/// the specified type `T`. This is useful for testing and debugging.
 pub fn num_interned<T: Staticize>() -> usize {
     let type_id = T::static_type_id();
     INTERNED.with(|interned| interned.borrow_mut().entry(type_id).or_default().len())
 }
 
+/// Derives [`From<Interned<T>>`] for the specified value type.
+#[macro_export]
 macro_rules! derive_from_interned_impl_value {
     ($ty:ty) => {
         impl From<$crate::Interned<$ty>> for $ty {
@@ -275,6 +302,8 @@ macro_rules! derive_from_interned_impl_value {
     };
 }
 
+/// Derives [`From<Interned<T>>`] for the specified slice type.
+#[macro_export]
 macro_rules! derive_from_interned_impl_slice {
     ($ty:ty) => {
         impl From<$crate::Interned<$ty>> for $ty {
