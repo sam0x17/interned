@@ -154,7 +154,7 @@ impl<T: Hash + Staticize + DataType<Type = Slice>> Interned<T> {
 
 impl Interned<&str> {
     pub fn interned_str<'a>(&self) -> &'a str {
-        unsafe { self.value.as_str() }
+        self.value.as_str()
     }
 }
 
@@ -233,7 +233,7 @@ where
             Static::Slice(slice) => {
                 f.field("slice", unsafe { &slice.as_slice::<T::SliceValueType>() })
             }
-            Static::Str(string) => f.field("str", unsafe { &string.as_str() }),
+            Static::Str(string) => f.field("str", &string.as_str()),
         }
         .finish();
         ret
@@ -246,7 +246,7 @@ impl<T: Hash + Display> Display for Interned<T> {
         match self.value {
             Static::Value(value) => unsafe { value.as_value::<T>().fmt(f) },
             Static::Slice(slice) => unsafe { slice.as_slice::<T>().fmt(f) },
-            Static::Str(string) => unsafe { string.as_str().fmt(f) },
+            Static::Str(string) => string.as_str().fmt(f),
         }
     }
 }

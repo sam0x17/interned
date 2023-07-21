@@ -24,7 +24,7 @@ impl<I: Hash, T: Hash + Staticize + DataType<Type = Slice>> Memoized<I, T> {
 
 impl<I: Hash> Memoized<I, &str> {
     pub fn as_str<'a>(&self) -> &'a str {
-        unsafe { self.interned.value.as_str() }
+        self.interned.value.as_str()
     }
 }
 
