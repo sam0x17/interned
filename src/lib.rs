@@ -289,6 +289,7 @@ impl From<Interned<&str>> for &str {
     }
 }
 
+derive_from_interned_impl_value!(char);
 derive_from_interned_impl_value!(bool);
 derive_from_interned_impl_value!(usize);
 derive_from_interned_impl_value!(u8);
