@@ -1,5 +1,18 @@
+//! Home of the [`Memoized`] struct, which provides a memoization facility on top of
+//! [`Interned`] so you can memoize and intern values based on _input_ and a specified _scope_.
+
 use crate::*;
 
+/// Allows you to memoize a value in [`Interned`] storage based on a specified _input_,
+/// _generator_, and _scope_.
+///
+/// [`Memoized`] takes two generic types, `T`, which is the underlying datatype being stored,
+/// and `I`, which is the _input_ type used to generate the `T` value.
+///
+/// To memoize a value, you must use [`Memoized::from`].
+///
+/// The following example showcases some general usage for [`Memoized`]:
+#[doc = docify::embed_run!("tests/tests.rs", test_memoized_basic)]
 #[derive(Copy, Clone)]
 pub struct Memoized<I: Hash, T: Hash + Staticize + DataType> {
     _input: PhantomData<I>,
@@ -7,6 +20,7 @@ pub struct Memoized<I: Hash, T: Hash + Staticize + DataType> {
 }
 
 impl<I: Hash, T: Hash + Staticize + DataType> Memoized<I, T> {
+    /// Returns the underlying [`Interned`] stored by this [`Memoized`].
     #[inline]
     pub fn interned(&self) -> Interned<T> {
         Interned {
@@ -17,18 +31,24 @@ impl<I: Hash, T: Hash + Staticize + DataType> Memoized<I, T> {
 }
 
 impl<I: Hash, T: Hash + Staticize + DataType<Type = Slice>> Memoized<I, T> {
+    /// Accesses the underlying memoized value as a slice. This will panic if the value is not
+    /// a slice.
     pub fn as_slice<'a>(&self) -> &'a [T::SliceValueType] {
         unsafe { self.interned.value.as_slice::<T::SliceValueType>() }
     }
 }
 
 impl<I: Hash> Memoized<I, &str> {
+    /// Accesses the underlying memoized value as a `&'static str`. This will panic if the
+    /// value is not a `&str`.
     pub fn as_str<'a>(&self) -> &'a str {
         self.interned.value.as_str()
     }
 }
 
 impl<I: Hash, T: Hash + Staticize + DataType<Type = Value>> Memoized<I, T> {
+    /// Accesses the underlying memoized value as a (referenced) value. This will panic if the
+    /// value is actually a slice or `&str`.
     pub fn as_value<'a>(&self) -> &'a T {
         unsafe { self.interned.value.as_value() }
     }
@@ -38,16 +58,32 @@ impl<I: Hash, T: Hash + Copy + Staticize + DataType> Memoized<I, T>
 where
     T::Static: Hash + Copy + Clone + DataType,
 {
+    /// Memoizes the provided `generator` closure/function for the specified unique `scope`
+    /// (which can be any hashable value that uniquely identifies the context of this generator).
+    ///
+    /// The memoized value is produced by hashing the `input`, `scope` and the [`TypeId`] of `T` together and,
+    /// checking the thread-local memoized heap storage to see if a value is already memoized
+    /// for this combination of `input` + `scope` + `T`. If it is, an instance of [`Memoized`]
+    /// is created and returned referencing this heap value. If this combination isn't already
+    /// memoized, `input` is fed into `generator` to produce the output value (of type `T`),
+    /// and this value is then interned and a [`Memoized`] instance referencing it is returned.
+    /// If the value happens to already exist in [`Interned`]'s storage, this existing
+    /// [`Interned`] will be automatically used.
+    ///
+    /// Thus [`Memoized`] provides perfect memory de-duplication for all memoized values.
+    ///
+    #[doc = docify::embed_run!("tests/tests.rs", test_memoized_showcase)]
     pub fn from<S, G>(scope: S, input: I, generator: G) -> Memoized<I, T>
     where
         S: Hash,
         G: Fn(I) -> Interned<T>,
     {
         let mut hasher = DefaultHasher::default();
+        let type_id = T::static_type_id();
         input.hash(&mut hasher);
         scope.hash(&mut hasher);
+        type_id.hash(&mut hasher);
         let input_hash = hasher.finish();
-        let type_id = T::static_type_id();
         let value_static = MEMOIZED.with(|memoized| {
             match (*memoized)
                 .borrow_mut()
