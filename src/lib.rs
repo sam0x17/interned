@@ -1,4 +1,4 @@
-//! This crate provides highly optimized, thread-local, generic
+//! Interned provides highly optimized, thread-local, generic
 //! [interning](https://en.wikipedia.org/wiki/String_interning) via [`Interned<T>`] and a
 //! [memoization](https://en.wikipedia.org/wiki/Memoization) layer built on top of this
 //! interning layer, provided by [`Memoized<I, T>`], which can cache the result of an arbitrary
@@ -38,6 +38,9 @@
 //!
 //! The following demonstrates how "scopes" work with [`Memoized`]:
 #![doc = docify::embed_run!("tests/tests.rs", test_memoized_basic)]
+
+#[cfg(all(doc, feature = "generate-readme"))]
+docify::compile_markdown!("README.docify.md", "README.md");
 
 pub mod _unsafe;
 pub mod datatype;
