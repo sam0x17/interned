@@ -2,6 +2,22 @@ use crate::*;
 use core::fmt::Display;
 use core::ops::Deref;
 
+/// A convenience abstraction around [`Interned<&'static str>`] with some extra [`From`] impls
+/// and other convenience functions. This should be your go-to type if you want to work with
+/// interned strings.
+///
+/// ```
+/// use interned::InStr;
+///
+/// let a = InStr::from("this is a triumph");
+/// let b: InStr = String::from("this is a triumph").into();
+/// let c: InStr = "I'm making a note here, huge success".into();
+/// assert_eq!(a, b);
+/// assert_eq!(a, "this is a triumph");
+/// assert_ne!(a, c);
+/// assert_ne!(b, c);
+/// assert_eq!(a.as_ptr(), b.as_ptr());
+/// ```
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct InStr(Interned<&'static str>);
 
