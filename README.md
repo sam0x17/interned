@@ -34,6 +34,10 @@ plus a `u64` (cached hash code), it would be silly to use `Interned<T>` with int
 directly, however it makes sense to do so for the purposes of memoizing an expensive
 computation via `Memoized<I, T>`.
 
+An interned string type, `InStr`, is also provided as a convenient wrapper around
+`Interned<&'static str>`. It has a number of extra impls and should be your go-to type if you
+want to work with interned strings.
+
 ### Interned Example
 ```rust
 #[test]
@@ -49,6 +53,10 @@ fn test_interned_showcase() {
     assert_ne!(d, "fdsa".into());
     assert_eq!(Interned::from("asdf"), d);
     let e = Interned::from([1, 2, 3, 4, 5].as_slice());
+    let f = InStr::from("abc");
+    let g: InStr = "abc".into();
+    assert_eq!(f, g);
+    assert_eq!(f.as_ptr(), g.as_ptr());
     assert_eq!(e, [1, 2, 3, 4, 5].as_slice().into());
     assert_ne!(e, [4, 1, 7].as_slice().into());
     assert_eq!(format!("{b:?}"), "Interned<i32> { value: 1289 }");

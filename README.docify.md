@@ -34,6 +34,10 @@ plus a `u64` (cached hash code), it would be silly to use `Interned<T>` with int
 directly, however it makes sense to do so for the purposes of memoizing an expensive
 computation via `Memoized<I, T>`.
 
+An interned string type, `InStr`, is also provided as a convenient wrapper around
+`Interned<&'static str>`. It has a number of extra impls and should be your go-to type if you
+want to work with interned strings.
+
 ### Interned Example
 <!-- docify::embed!("tests/tests.rs", test_interned_showcase) -->
 

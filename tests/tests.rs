@@ -180,6 +180,10 @@ fn test_interned_showcase() {
     assert_ne!(d, "fdsa".into());
     assert_eq!(Interned::from("asdf"), d);
     let e = Interned::from([1, 2, 3, 4, 5].as_slice());
+    let f = InStr::from("abc");
+    let g: InStr = "abc".into();
+    assert_eq!(f, g);
+    assert_eq!(f.as_ptr(), g.as_ptr());
     assert_eq!(e, [1, 2, 3, 4, 5].as_slice().into());
     assert_ne!(e, [4, 1, 7].as_slice().into());
     assert_eq!(format!("{b:?}"), "Interned<i32> { value: 1289 }");
