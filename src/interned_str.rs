@@ -18,10 +18,16 @@ use core::ops::Deref;
 /// assert_ne!(b, c);
 /// assert_eq!(a.as_ptr(), b.as_ptr());
 /// ```
+///
+/// Note that as shown above, convenient impls are provided for [`From`]/[`Into`] conversions
+/// and [`PartialEq`]/[`Eq`][`PartialOrd`]/[`Ord`] with all other [`str`] and [`String`] types,
+/// meaning that for the most part you can use an [`InStr`] seamlessly in most places where
+/// some sort of string type is expected.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct InStr(Interned<&'static str>);
 
 impl InStr {
+    /// Returns a reference to the underlying interned string for this [`InStr`].
     pub fn as_str(&self) -> &'static str {
         self.0.interned_str()
     }
