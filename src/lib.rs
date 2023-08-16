@@ -47,6 +47,8 @@ pub mod datatype;
 pub use datatype::DataType;
 pub mod memoized;
 pub use memoized::Memoized;
+pub mod interned_str;
+pub use interned_str::*;
 
 use _unsafe::*;
 use datatype::*;
