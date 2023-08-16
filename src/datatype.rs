@@ -120,7 +120,7 @@ macro_rules! unsafe_impl_data_type {
                 *self
             }
 
-            fn to_static_with_hash(&self, hash: Option<u64>) -> Static {
+            fn to_static_with_hash(&self, hash: Option<u64>) -> $crate::Static {
                 Static::from_value(*self, hash)
             }
         }
