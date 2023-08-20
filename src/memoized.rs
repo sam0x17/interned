@@ -16,7 +16,8 @@ use crate::*;
 #[derive(Copy, Clone)]
 pub struct Memoized<I: Hash, T: Hash + Staticize + DataType> {
     _input: PhantomData<I>,
-    interned: Interned<T>,
+    #[doc(hidden)]
+    pub interned: Interned<T>,
 }
 
 impl<I: Hash, T: Hash + Staticize + DataType> Memoized<I, T> {

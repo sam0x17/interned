@@ -116,7 +116,8 @@ impl BuildHasher for TypeIdHasherBuilder {
 #[derive(Copy, Clone)]
 pub struct Interned<T: Hash> {
     _value: PhantomData<T>,
-    value: Static,
+    #[doc(hidden)]
+    pub value: Static,
 }
 
 impl<T: Hash> Interned<T> {
