@@ -10,7 +10,7 @@ repository = "https://github.com/sam0x17/interned"
 
 [dependencies]
 docify = "0.2"
-staticize = { version = "0.1.1", features = ["std"] }
+staticize = { version = "0.1.2", features = ["std"] }
 
 [features]
 default = []
