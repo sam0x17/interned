@@ -3,6 +3,7 @@
 use std::{
     alloc::Layout,
     collections::hash_map::DefaultHasher,
+    ffi::OsStr,
     hash::{Hash, Hasher},
 };
 
@@ -235,6 +236,82 @@ impl Ord for StaticStr {
 impl std::fmt::Debug for StaticStr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("StaticStr")
+            .field("str", &self.as_str())
+            .field("hash", &self.hash)
+            .finish()
+    }
+}
+
+/// An internal struct used to represent a type-erased, heap-allocated `&'static OsStr`) (i.e.
+/// not a reference, slice, or value).
+///
+/// [`StaticOsStr`] is the only variant of [`Static`] where all methods are inherently safe,
+/// because no type erasure occurs.
+#[derive(Copy, Clone)]
+pub struct StaticOsStr {
+    ptr: *const OsStr,
+    hash: u64,
+}
+
+impl StaticOsStr {
+    /// Allows direct access to the [`OsStr`] stored in this [`StaticOsStr`].
+    pub const fn as_os_str<'a>(&self) -> &'a OsStr {
+        unsafe { &*(self.ptr as *const OsStr) }
+    }
+
+    /// Creates a new [`StaticOsStr`] from the specified `&OsStr`. Since [`StaticOsStr`] does
+    /// not de-allocate its associated heap string when it is dropped (in fact, it can't be
+    /// dropped because it is [`Copy`]), this amounts to a memory leak.
+    pub fn from<T: Hash + Copy>(value: &OsStr) -> Self {
+        Self::with_hash(value, None)
+    }
+
+    /// Creates a new [`StaticOsStr`] from the specified `&OsStr`, based on a
+    /// manually-specified hashcode. Since [`StaticOsStr`] does not de-allocate its associated
+    /// heap string when it is dropped (in fact, it can't be dropped because it is [`Copy`]),
+    /// this amounts to a memory leak.
+    pub fn with_hash(value: &OsStr, hash: Option<u64>) -> Self {
+        let hash = hash.unwrap_or_else(|| {
+            let mut hasher = DefaultHasher::default();
+            value.hash(&mut hasher);
+            hasher.finish()
+        });
+        let ptr = Box::leak(Box::from(value)) as *const OsStr;
+        let written_value = unsafe { (ptr as *const OsStr).as_ref().unwrap() };
+        assert_eq!(written_value, value);
+        StaticOsStr { ptr, hash }
+    }
+}
+
+impl Hash for StaticOsStr {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.hash.hash(state);
+    }
+}
+
+impl PartialEq for StaticOsStr {
+    fn eq(&self, other: &Self) -> bool {
+        self.hash == other.hash
+    }
+}
+
+impl Eq for StaticOsStr {}
+
+impl PartialOrd for StaticOsStr {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.hash.partial_cmp(&other.hash)
+    }
+}
+
+impl Ord for StaticOsStr {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.hash.cmp(&other.hash)
+    }
+}
+
+impl std::fmt::Debug for StaticOsStr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StaticOsStr")
             .field("hash", &self.hash)
             .finish()
     }
@@ -250,6 +327,7 @@ pub enum Static {
     Value(StaticValue),
     Slice(StaticSlice),
     Str(StaticStr),
+    OsStr(StaticOsStr),
 }
 
 impl Static {
@@ -260,6 +338,7 @@ impl Static {
             Static::Value(value) => value.ptr,
             Static::Slice(slice) => slice.ptr as *const (),
             Static::Str(string) => string.ptr as *const (),
+            Static::OsStr(os_str) => os_str.ptr as *const (),
         }
     }
 
@@ -270,6 +349,7 @@ impl Static {
             Static::Value(value) => value.hash,
             Static::Slice(slice) => slice.hash,
             Static::Str(string) => string.hash,
+            Static::OsStr(os_str) => os_str.hash,
         }
     }
 
@@ -286,6 +366,11 @@ impl Static {
     /// Creates a [`Static`] from a `&str`.
     pub fn from_str(value: &str, hash: Option<u64>) -> Static {
         Static::Str(StaticStr::with_hash(value, hash))
+    }
+
+    /// Creates a [`Static`] from an `&OsStr`.
+    pub fn from_os_str(value: &OsStr, hash: Option<u64>) -> Static {
+        Static::OsStr(StaticOsStr::with_hash(value, hash))
     }
 
     /// Unsafely accesses the slice pointed to by the underlying [`StaticSlice`]. If the
@@ -317,6 +402,15 @@ impl Static {
         }
     }
 
+    /// Unsafely accesses the `&OsStr` pointed to by the underlying [`StaticOsStr`]. If the
+    /// underlying variant of the [`StaticOsStr`] is not a [`StaticOsStr`], this method will panic.
+    pub fn as_os_str<'a>(&self) -> &'a OsStr {
+        match self {
+            Static::OsStr(static_os_str) => static_os_str.as_os_str(),
+            _ => panic!("not an &OsStr!"),
+        }
+    }
+
     /// This is UB if the underlying types differ and a hash collision occurs.
     pub unsafe fn _partial_eq<T: PartialEq + DataType + Staticize>(&self, other: &Static) -> bool
     where
@@ -338,6 +432,7 @@ impl Static {
                 a.as_slice::<T>().partial_cmp(b.as_slice::<T>())
             }
             (Static::Str(a), Static::Str(b)) => a.as_str().partial_cmp(b.as_str()),
+            (Static::OsStr(a), Static::OsStr(b)) => a.as_os_str().partial_cmp(b.as_os_str()),
             _ => (T::static_type_id(), self.hash_code())
                 .partial_cmp(&(T::static_type_id(), other.hash_code())),
         }
@@ -349,6 +444,7 @@ impl Static {
             (Static::Value(a), Static::Value(b)) => a.as_value::<T>().cmp(b.as_value::<T>()),
             (Static::Slice(a), Static::Slice(b)) => a.as_slice::<T>().cmp(b.as_slice::<T>()),
             (Static::Str(a), Static::Str(b)) => a.as_str().cmp(b.as_str()),
+            (Static::OsStr(a), Static::OsStr(b)) => a.as_os_str().cmp(b.as_os_str()),
             _ => (T::static_type_id(), self.hash_code())
                 .cmp(&(T::static_type_id(), other.hash_code())),
         }
@@ -361,6 +457,7 @@ impl Static {
             Static::Value(value) => (type_id, value).hash(state),
             Static::Slice(slice) => (type_id, slice).hash(state),
             Static::Str(string) => (type_id, string).hash(state),
+            Static::OsStr(os_str) => (type_id, os_str).hash(state),
         }
     }
 }

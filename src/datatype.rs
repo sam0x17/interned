@@ -5,6 +5,7 @@
 
 use crate::_unsafe::*;
 use crate::*;
+use std::ffi::OsStr;
 
 /// Variant of [`DataTypeTypeMarker`] representing a slice type.
 pub enum Slice {}
@@ -145,6 +146,27 @@ unsafe impl<'a> DataType for &'a str {
 
     fn to_static_with_hash(&self, hash: Option<u64>) -> Static {
         Static::from_str(*self, hash)
+    }
+}
+
+unsafe impl<'a> DataType for &'a OsStr {
+    type Type = Reference;
+    type SliceType = &'a OsStr;
+    type ValueType = &'a OsStr;
+    type SliceValueType = ();
+    type InnerType = OsStr;
+    type DerefTargetType = OsStr;
+
+    fn as_slice(&self) -> &'static [()] {
+        panic!("not supported");
+    }
+
+    fn as_value(&self) -> &'a OsStr {
+        *self
+    }
+
+    fn to_static_with_hash(&self, hash: Option<u64>) -> Static {
+        Static::from_os_str(*self, hash)
     }
 }
 

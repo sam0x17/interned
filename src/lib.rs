@@ -65,6 +65,7 @@ use std::{
         hash_map::{DefaultHasher, Entry},
         HashMap,
     },
+    ffi::OsStr,
     fmt::Display,
     hash::{BuildHasher, Hash, Hasher},
     marker::PhantomData,
@@ -186,6 +187,14 @@ impl Interned<&str> {
     }
 }
 
+impl Interned<&OsStr> {
+    /// Returns a reference to the underlying `&OsStr` interned in this [`Interned`]. Calling
+    /// this method on a non-OsStr will panic.
+    pub fn interned_os_str<'a>(&self) -> &'a OsStr {
+        self.value.as_os_str()
+    }
+}
+
 impl<T: Hash + Staticize + DataType<Type = Value>> Interned<T> {
     /// Returns a reference to the underlying `T` interned in this [`Interned`]. Calling this
     /// method on a non-value will panic.
@@ -209,6 +218,9 @@ impl<T: Hash + Staticize + DataType> Deref for Interned<T> {
                 std::mem::transmute_copy(&static_value.as_value::<T>())
             },
             Static::Str(static_str) => unsafe { std::mem::transmute_copy(&static_str.as_str()) },
+            Static::OsStr(static_os_str) => unsafe {
+                std::mem::transmute_copy(&static_os_str.as_os_str())
+            },
         }
     }
 }
@@ -265,6 +277,7 @@ where
                 f.field("slice", unsafe { &slice.as_slice::<T::SliceValueType>() })
             }
             Static::Str(string) => f.field("str", &string.as_str()),
+            Static::OsStr(os_str) => f.field("OsStr", &os_str.as_os_str()),
         }
         .finish();
         ret
@@ -278,6 +291,7 @@ impl<T: Hash + Display> Display for Interned<T> {
             Static::Value(value) => unsafe { value.as_value::<T>().fmt(f) },
             Static::Slice(slice) => unsafe { slice.as_slice::<T>().fmt(f) },
             Static::Str(string) => string.as_str().fmt(f),
+            Static::OsStr(os_str) => os_str.as_os_str().fmt(f),
         }
     }
 }
@@ -331,6 +345,12 @@ macro_rules! derive_from_interned_impl_slice {
 impl From<Interned<&str>> for &str {
     fn from(value: Interned<&str>) -> Self {
         value.interned_str()
+    }
+}
+
+impl From<Interned<&OsStr>> for &OsStr {
+    fn from(value: Interned<&OsStr>) -> Self {
+        value.interned_os_str()
     }
 }
 
