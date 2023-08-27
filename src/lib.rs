@@ -70,6 +70,7 @@ use std::{
     hash::{BuildHasher, Hash, Hasher},
     marker::PhantomData,
     ops::Deref,
+    path::Path,
 };
 
 thread_local! {
@@ -195,6 +196,14 @@ impl Interned<&OsStr> {
     }
 }
 
+impl Interned<&Path> {
+    /// Returns a reference to the underlying `&Path` interned in this [`Interned`]. Calling
+    /// this method on a non-Path will panic.
+    pub fn interned_path<'a>(&self) -> &'a Path {
+        self.value.as_path()
+    }
+}
+
 impl<T: Hash + Staticize + DataType<Type = Value>> Interned<T> {
     /// Returns a reference to the underlying `T` interned in this [`Interned`]. Calling this
     /// method on a non-value will panic.
@@ -220,6 +229,9 @@ impl<T: Hash + Staticize + DataType> Deref for Interned<T> {
             Static::Str(static_str) => unsafe { std::mem::transmute_copy(&static_str.as_str()) },
             Static::OsStr(static_os_str) => unsafe {
                 std::mem::transmute_copy(&static_os_str.as_os_str())
+            },
+            Static::Path(static_path) => unsafe {
+                std::mem::transmute_copy(&static_path.as_path())
             },
         }
     }
@@ -278,6 +290,7 @@ where
             }
             Static::Str(string) => f.field("str", &string.as_str()),
             Static::OsStr(os_str) => f.field("OsStr", &os_str.as_os_str()),
+            Static::Path(path) => f.field("Path", &path.as_path()),
         }
         .finish();
         ret
@@ -292,6 +305,7 @@ impl<T: Hash + Display> Display for Interned<T> {
             Static::Slice(slice) => unsafe { slice.as_slice::<T>().fmt(f) },
             Static::Str(string) => string.as_str().fmt(f),
             Static::OsStr(os_str) => os_str.as_os_str().fmt(f),
+            Static::Path(path) => path.as_path().fmt(f),
         }
     }
 }
@@ -351,6 +365,12 @@ impl From<Interned<&str>> for &str {
 impl From<Interned<&OsStr>> for &OsStr {
     fn from(value: Interned<&OsStr>) -> Self {
         value.interned_os_str()
+    }
+}
+
+impl From<Interned<&Path>> for &Path {
+    fn from(value: Interned<&Path>) -> Self {
+        value.interned_path()
     }
 }
 

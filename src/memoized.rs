@@ -120,6 +120,9 @@ impl<I: Hash, T: Hash + Staticize + DataType> Deref for Memoized<I, T> {
             Static::OsStr(static_os_str) => unsafe {
                 std::mem::transmute_copy(&static_os_str.as_os_str())
             },
+            Static::Path(static_path) => unsafe {
+                std::mem::transmute_copy(&static_path.as_path())
+            },
         }
     }
 }

@@ -2,6 +2,7 @@ use crate::*;
 use core::fmt::Display;
 use core::ops::Deref;
 use std::ffi::OsString;
+use std::path::{Path, PathBuf};
 
 /// A convenience abstraction around [`Interned<&'static str>`] with some extra [`From`] impls
 /// and other convenience functions. This should be your go-to type if you want to work with
@@ -126,9 +127,9 @@ impl Deref for InStr {
 /// ```
 ///
 /// Note that as shown above, convenient impls are provided for [`From`]/[`Into`] conversions
-/// and [`PartialEq`]/[`Eq`][`PartialOrd`]/[`Ord`] with all other [`str`] and [`String`] types,
-/// meaning that for the most part you can use an [`InOsStr`] seamlessly in most places where
-/// some sort of string type is expected.
+/// and [`PartialEq`]/[`Eq`][`PartialOrd`]/[`Ord`] with all other [`OsStr`] and [`OsString`]
+/// types, meaning that for the most part you can use an [`InOsStr`] seamlessly in most places
+/// where some sort of os string is expected.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct InOsStr(Interned<&'static OsStr>);
 
@@ -225,6 +226,128 @@ fn test_in_os_str() {
     let b: InOsStr = OsString::from("hey").into();
     assert_ne!(a, b);
     let c: InOsStr = OsStr::new("hello world").into();
+    assert_eq!(a, c);
+    assert_ne!(b, c);
+}
+
+/// A convenience abstraction around [`Interned<&'static Path>`] with some extra [`From`] impls
+/// and other convenience functions. This should be your go-to type if you want to work with
+/// interned [`Path`]s and/or [`Path`]s.
+///
+/// ```
+/// use std::path::*;
+/// use interned::InPath;
+///
+/// let a = InPath::from(Path::new("/home/sam"));
+/// let b: InPath = Path::new("/home/sam").into();
+/// let c: InPath = PathBuf::from(Path::new("/home/sam/Desktop")).into();
+/// assert_eq!(a, b);
+/// assert_eq!(a, Path::new("/home/sam"));
+/// assert_ne!(a, c);
+/// assert_ne!(b, c);
+/// assert_eq!(a.as_ptr(), b.as_ptr());
+/// ```
+///
+/// Note that as shown above, convenient impls are provided for [`From`]/[`Into`] conversions
+/// and [`PartialEq`]/[`Eq`][`PartialOrd`]/[`Ord`] with all other [`Path`] and [`PathBuf`] types,
+/// meaning that for the most part you can use an [`InPath`] seamlessly in most places where
+/// some sort of string type is expected.
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+pub struct InPath(Interned<&'static Path>);
+
+impl InPath {
+    /// Returns a reference to the underlying interned path for this [`InPath`].
+    pub fn as_path(&self) -> &'static Path {
+        self.0.interned_path()
+    }
+
+    /// Returns the underlying heap pointer where this [`Path`] is stored.
+    pub fn as_ptr(&self) -> *const () {
+        self.0.as_ptr()
+    }
+}
+
+impl Display for InPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0.interned_path().to_string_lossy())
+    }
+}
+
+impl AsRef<Path> for InPath {
+    fn as_ref(&self) -> &Path {
+        self.0.interned_path()
+    }
+}
+
+impl<'a> From<&'a Path> for InPath {
+    fn from(value: &'a Path) -> Self {
+        InPath(Interned::<&'static Path>::from(value))
+    }
+}
+
+impl From<Interned<&'static Path>> for InPath {
+    fn from(value: Interned<&'static Path>) -> Self {
+        InPath(value)
+    }
+}
+
+impl<'a> From<InPath> for &'a Path {
+    fn from(value: InPath) -> Self {
+        value.0.interned_path()
+    }
+}
+
+impl From<PathBuf> for InPath {
+    fn from(value: PathBuf) -> Self {
+        InPath::from(value.as_path())
+    }
+}
+
+impl From<InPath> for PathBuf {
+    fn from(value: InPath) -> Self {
+        value.as_path().into()
+    }
+}
+
+impl PartialEq<&Path> for InPath {
+    fn eq(&self, other: &&Path) -> bool {
+        self.0.interned_path().eq(*other)
+    }
+}
+
+impl PartialEq<Path> for InPath {
+    fn eq(&self, other: &Path) -> bool {
+        self.0.interned_path().eq(other)
+    }
+}
+
+impl PartialOrd<&Path> for InPath {
+    fn partial_cmp(&self, other: &&Path) -> Option<std::cmp::Ordering> {
+        self.0.interned_path().partial_cmp(*other)
+    }
+}
+
+impl Deref for InPath {
+    type Target = Path;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.interned_path()
+    }
+}
+
+#[test]
+fn test_interned_path() {
+    let a: Interned<&'static Path> = Path::new("/hey").into();
+    let b: &Path = Path::new("/hey");
+    assert_eq!(a.interned_path(), b);
+}
+
+#[test]
+fn test_in_path() {
+    let a: InPath = InPath::from(Path::new("/hello/world"));
+    let b: InPath = Path::new("hey").into();
+    assert_ne!(a, b);
+    let c: InPath = Path::new("/hello/world").into();
     assert_eq!(a, c);
     assert_ne!(b, c);
 }

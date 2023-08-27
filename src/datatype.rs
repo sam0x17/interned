@@ -170,6 +170,27 @@ unsafe impl<'a> DataType for &'a OsStr {
     }
 }
 
+unsafe impl<'a> DataType for &'a Path {
+    type Type = Reference;
+    type SliceType = &'a Path;
+    type ValueType = &'a Path;
+    type SliceValueType = ();
+    type InnerType = Path;
+    type DerefTargetType = Path;
+
+    fn as_slice(&self) -> &'static [()] {
+        panic!("not supported");
+    }
+
+    fn as_value(&self) -> &'a Path {
+        *self
+    }
+
+    fn to_static_with_hash(&self, hash: Option<u64>) -> Static {
+        Static::from_path(*self, hash)
+    }
+}
+
 unsafe_impl_data_type!((), Value);
 unsafe_impl_data_type!(char, Value);
 unsafe_impl_data_type!(bool, Value);

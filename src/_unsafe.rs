@@ -5,6 +5,7 @@ use std::{
     collections::hash_map::DefaultHasher,
     ffi::OsStr,
     hash::{Hash, Hasher},
+    path::Path,
 };
 
 use crate::datatype::*;
@@ -167,7 +168,7 @@ impl std::fmt::Debug for StaticSlice {
 }
 
 /// An internal struct used to represent a type-erased, heap-allocated, static string
-/// (`&'static str`) (i.e. not a reference, slice, or value).
+/// (`&'static str`).
 ///
 /// [`StaticStr`] is the only variant of [`Static`] where all methods are inherently safe,
 /// because no type erasure occurs.
@@ -242,8 +243,7 @@ impl std::fmt::Debug for StaticStr {
     }
 }
 
-/// An internal struct used to represent a type-erased, heap-allocated `&'static OsStr`) (i.e.
-/// not a reference, slice, or value).
+/// An internal struct used to represent a type-erased, heap-allocated `&'static OsStr`.
 ///
 /// [`StaticOsStr`] is the only variant of [`Static`] where all methods are inherently safe,
 /// because no type erasure occurs.
@@ -317,8 +317,82 @@ impl std::fmt::Debug for StaticOsStr {
     }
 }
 
-/// An (unsafe) internal enum that generalizes over [`StaticValue`], [`StaticSlice`], and
-/// [`StaticStr`].
+/// An internal struct used to represent a type-erased, heap-allocated `&'static Path`.
+///
+/// [`StaticPath`] is the only variant of [`Static`] where all methods are inherently safe,
+/// because no type erasure occurs.
+#[derive(Copy, Clone)]
+pub struct StaticPath {
+    ptr: *const Path,
+    hash: u64,
+}
+
+impl StaticPath {
+    /// Allows direct access to the [`Path`] stored in this [`StaticPath`].
+    pub const fn as_path<'a>(&self) -> &'a Path {
+        unsafe { &*(self.ptr as *const Path) }
+    }
+
+    /// Creates a new [`StaticPath`] from the specified `&Path`. Since [`StaticPath`] does not
+    /// de-allocate its associated heap path when it is dropped (in fact, it can't be dropped
+    /// because it is [`Copy`]), this amounts to a memory leak.
+    pub fn from<T: Hash + Copy>(value: &Path) -> Self {
+        Self::with_hash(value, None)
+    }
+
+    /// Creates a new [`StaticPath`] from the specified `&Path`, based on a manually-specified
+    /// hashcode. Since [`StaticPath`] does not de-allocate its associated heap path when it is
+    /// dropped (in fact, it can't be dropped because it is [`Copy`]), this amounts to a memory
+    /// leak.
+    pub fn with_hash(value: &Path, hash: Option<u64>) -> Self {
+        let hash = hash.unwrap_or_else(|| {
+            let mut hasher = DefaultHasher::default();
+            value.hash(&mut hasher);
+            hasher.finish()
+        });
+        let ptr = Box::leak(Box::from(value)) as *const Path;
+        let written_value = unsafe { (ptr as *const Path).as_ref().unwrap() };
+        assert_eq!(written_value, value);
+        StaticPath { ptr, hash }
+    }
+}
+
+impl Hash for StaticPath {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.hash.hash(state);
+    }
+}
+
+impl PartialEq for StaticPath {
+    fn eq(&self, other: &Self) -> bool {
+        self.hash == other.hash
+    }
+}
+
+impl Eq for StaticPath {}
+
+impl PartialOrd for StaticPath {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.hash.partial_cmp(&other.hash)
+    }
+}
+
+impl Ord for StaticPath {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.hash.cmp(&other.hash)
+    }
+}
+
+impl std::fmt::Debug for StaticPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StaticPath")
+            .field("hash", &self.hash)
+            .finish()
+    }
+}
+
+/// An (unsafe) internal enum that generalizes over [`StaticValue`], [`StaticSlice`],
+/// [`StaticOsStr`], [`StaticPath`], and [`StaticStr`].
 ///
 /// Thus [`Static`] represents an arbitrary heap-allocated value with a `'static` lifetime that
 /// cannot be dropped/de-allocated.
@@ -328,6 +402,7 @@ pub enum Static {
     Slice(StaticSlice),
     Str(StaticStr),
     OsStr(StaticOsStr),
+    Path(StaticPath),
 }
 
 impl Static {
@@ -339,6 +414,7 @@ impl Static {
             Static::Slice(slice) => slice.ptr as *const (),
             Static::Str(string) => string.ptr as *const (),
             Static::OsStr(os_str) => os_str.ptr as *const (),
+            Static::Path(path) => path.ptr as *const (),
         }
     }
 
@@ -350,6 +426,7 @@ impl Static {
             Static::Slice(slice) => slice.hash,
             Static::Str(string) => string.hash,
             Static::OsStr(os_str) => os_str.hash,
+            Static::Path(path) => path.hash,
         }
     }
 
@@ -371,6 +448,11 @@ impl Static {
     /// Creates a [`Static`] from an `&OsStr`.
     pub fn from_os_str(value: &OsStr, hash: Option<u64>) -> Static {
         Static::OsStr(StaticOsStr::with_hash(value, hash))
+    }
+
+    /// Creates a [`Static`] from a `&Path`.
+    pub fn from_path(value: &Path, hash: Option<u64>) -> Static {
+        Static::Path(StaticPath::with_hash(value, hash))
     }
 
     /// Unsafely accesses the slice pointed to by the underlying [`StaticSlice`]. If the
@@ -403,11 +485,22 @@ impl Static {
     }
 
     /// Unsafely accesses the `&OsStr` pointed to by the underlying [`StaticOsStr`]. If the
-    /// underlying variant of the [`StaticOsStr`] is not a [`StaticOsStr`], this method will panic.
+    /// underlying variant of the [`Static`] is not a [`StaticOsStr`], this method will
+    /// panic.
     pub fn as_os_str<'a>(&self) -> &'a OsStr {
         match self {
             Static::OsStr(static_os_str) => static_os_str.as_os_str(),
             _ => panic!("not an &OsStr!"),
+        }
+    }
+
+    /// Unsafely accesses the `&Path` pointed to by the underlying [`StaticPath`]. If the
+    /// underlying variant of the [`Static`] is not a [`StaticPath`], this method will
+    /// panic.
+    pub fn as_path<'a>(&self) -> &'a Path {
+        match self {
+            Static::Path(static_path) => static_path.as_path(),
+            _ => panic!("not a &Path!"),
         }
     }
 
@@ -433,6 +526,7 @@ impl Static {
             }
             (Static::Str(a), Static::Str(b)) => a.as_str().partial_cmp(b.as_str()),
             (Static::OsStr(a), Static::OsStr(b)) => a.as_os_str().partial_cmp(b.as_os_str()),
+            (Static::Path(a), Static::Path(b)) => a.as_path().partial_cmp(b.as_path()),
             _ => (T::static_type_id(), self.hash_code())
                 .partial_cmp(&(T::static_type_id(), other.hash_code())),
         }
@@ -445,6 +539,7 @@ impl Static {
             (Static::Slice(a), Static::Slice(b)) => a.as_slice::<T>().cmp(b.as_slice::<T>()),
             (Static::Str(a), Static::Str(b)) => a.as_str().cmp(b.as_str()),
             (Static::OsStr(a), Static::OsStr(b)) => a.as_os_str().cmp(b.as_os_str()),
+            (Static::Path(a), Static::Path(b)) => a.as_path().cmp(b.as_path()),
             _ => (T::static_type_id(), self.hash_code())
                 .cmp(&(T::static_type_id(), other.hash_code())),
         }
@@ -458,6 +553,7 @@ impl Static {
             Static::Slice(slice) => (type_id, slice).hash(state),
             Static::Str(string) => (type_id, string).hash(state),
             Static::OsStr(os_str) => (type_id, os_str).hash(state),
+            Static::Path(path) => (type_id, path).hash(state),
         }
     }
 }
