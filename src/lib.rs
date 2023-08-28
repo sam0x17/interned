@@ -35,13 +35,10 @@
 //! you want to work with interned strings.
 //!
 //! ### Interned Example
-#![doc = docify::embed_run!("tests/tests.rs", test_interned_showcase)]
+#![cfg_attr(doc, doc = docify::embed_run!("tests/tests.rs", test_interned_showcase))]
 //!
 //! ### Memoized Example
-#![doc = docify::embed_run!("tests/tests.rs", test_memoized_basic)]
-//!
-//! The following demonstrates how "scopes" work with [`Memoized`]:
-#![doc = docify::embed_run!("tests/tests.rs", test_memoized_basic)]
+#![cfg_attr(doc, doc = docify::embed_run!("tests/tests.rs", test_memoized_basic))]
 
 #[cfg(all(doc, feature = "generate-readme"))]
 docify::compile_markdown!("README.docify.md", "README.md");
