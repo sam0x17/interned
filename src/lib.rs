@@ -31,14 +31,71 @@
 //! expensive computation via [`Memoized<I, T>`].
 //!
 //! An interned string type, [`InStr`], is also provided as a convenient wrapper around
-//! [`Interned<&'static str>`]. It has a number of extra impls and should be your go-to type if
+//! `Interned<&'static str>`. It has a number of extra impls and should be your go-to type if
 //! you want to work with interned strings.
 //!
 //! ### Interned Example
-#![cfg_attr(doc, doc = docify::embed_run!("tests/tests.rs", test_interned_showcase))]
+//! ```
+//! use interned::*;
 //!
-//! ### Memoized Example
-#![cfg_attr(doc, doc = docify::embed_run!("tests/tests.rs", test_memoized_basic))]
+//! let a: Interned<i32> = 1289.into();
+//! let b = Interned::from(1289);
+//! let c: Interned<i32> = 47.into();
+//! assert_eq!(a, b);
+//! assert_ne!(a, c);
+//! assert_eq!(a.as_ptr(), b.as_ptr());
+//! assert_ne!(b.as_ptr(), c.as_ptr());
+//! let d: Interned<&str> = "asdf".into();
+//! assert_ne!(d, "fdsa".into());
+//! assert_eq!(Interned::from("asdf"), d);
+//! let e = Interned::from([1, 2, 3, 4, 5].as_slice());
+//! let f = InStr::from("abc");
+//! let g: InStr = "abc".into();
+//! assert_eq!(f, g);
+//! assert_eq!(f.as_ptr(), g.as_ptr());
+//! assert_eq!(e, [1, 2, 3, 4, 5].as_slice().into());
+//! assert_ne!(e, [4, 1, 7].as_slice().into());
+//! assert_eq!(format!("{b:?}"), "Interned<i32> { value: 1289 }");
+//! assert_eq!(format!("{d:?}"), "Interned<&str> { str: \"asdf\" }");
+//! assert_eq!(e[3], 4);
+//! assert_eq!(e[0], 1);
+//! assert_eq!(
+//!     format!("{e:?}"),
+//!     "Interned<&[i32]> { slice: [1, 2, 3, 4, 5] }"
+//! );
+//! ```
+//!
+//! ### Memoized Examples
+//! ```
+//! use interned::*;
+//!
+//! let initial_interned = num_interned::<usize>();
+//! let initial_memoized = num_memoized::<usize>();
+//! let a = Memoized::from("scope a", "some_input", |input| input.len().into());
+//! let b = Memoized::from("scope a", "other", |input| input.len().into());
+//! assert_ne!(a, b);
+//! let c = Memoized::from("scope a", "some_input", |input| input.len().into());
+//! assert_eq!(a, c);
+//! assert_ne!(b, c);
+//! assert_eq!(a.as_value(), &10);
+//! assert_ne!(*a.as_value(), 11);
+//! assert_eq!(*b.interned().interned_value(), 5);
+//! assert_eq!(*c.as_value(), 10);
+//! assert_eq!(num_interned::<usize>(), initial_interned + 2);
+//! assert_eq!(num_memoized::<usize>(), initial_memoized + 2);
+//! ```
+//!
+//! The following demonstrates how "scopes" work with `Memoized`:
+//! ```
+//! use interned::*;
+//! fn expensive_fn(a: usize, b: usize, c: usize) -> String {
+//!     format!("{}", a * a + b * b + c * c)
+//! }
+//! let a = Memoized::from("my_scope", (1, 2, 3), |tup: (usize, usize, usize)| {
+//!     expensive_fn(tup.0, tup.1, tup.2).as_str().into()
+//! });
+//! assert_eq!(a.as_str(), "14");
+//! ```
 
 #[cfg(all(doc, feature = "generate-readme"))]
 docify::compile_markdown!("README.docify.md", "README.md");
@@ -106,8 +163,8 @@ impl BuildHasher for TypeIdHasherBuilder {
     }
 }
 
-/// The main type of this crate. Represents a unique, heap-allocated, statically interned value that
-/// will exist for the life of the program.
+/// The main type of this crate. Represents a unique, heap-allocated, statically interned value
+/// that will exist for the life of the program.
 ///
 /// Two instances of [`Interned`] for the same value `T` will always have the same heap memory
 /// address. Additionally, `Interned` values can be copied freely, since they are merely heap

@@ -11,8 +11,7 @@ use crate::*;
 ///
 /// To memoize a value, you must use [`Memoized::from`].
 ///
-/// The following example showcases some general usage for [`Memoized`]:
-#[doc = docify::embed_run!("tests/tests.rs", test_memoized_basic)]
+/// See the docs at the root of the crate for some examples.
 #[derive(Copy, Clone)]
 pub struct Memoized<I: Hash, T: Hash + Staticize + DataType> {
     _input: PhantomData<I>,
@@ -73,7 +72,7 @@ where
     ///
     /// Thus [`Memoized`] provides perfect memory de-duplication for all memoized values.
     ///
-    #[doc = docify::embed_run!("tests/tests.rs", test_memoized_showcase)]
+    /// See the docs at the root of the crate for some examples.
     pub fn from<S, G>(scope: S, input: I, generator: G) -> Memoized<I, T>
     where
         S: Hash,

@@ -41,8 +41,8 @@ want to work with interned strings.
 ### Interned Example
 <!-- docify::embed!("tests/tests.rs", test_interned_showcase) -->
 
-### Memoized Example
+### Memoized Examples
 <!-- docify::embed!("tests/tests.rs", test_memoized_basic) -->
 
 The following demonstrates how "scopes" work with `Memoized`:
-<!-- docify::embed!("tests/tests.rs", test_memoized_basic) -->
+<!-- docify::embed!("tests/tests.rs", test_memoized_showcase) -->

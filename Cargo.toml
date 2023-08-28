@@ -9,9 +9,12 @@ keywords = ["intern", "interned", "memoize", "caching"]
 repository = "https://github.com/sam0x17/interned"
 
 [dependencies]
-docify = "0.2"
 staticize = { version = "0.1.2", features = ["std"] }
+docify = { version = "0.2", optional = true }
+
+[dev-dependencies]
+docify = "0.2"
 
 [features]
 default = []
-generate-readme = []
+generate-readme = ["dep:docify"]
